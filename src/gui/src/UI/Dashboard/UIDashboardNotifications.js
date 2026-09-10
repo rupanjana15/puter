@@ -21,11 +21,13 @@ import UINotification from '../UINotification.js';
 import { reveal_dashboard } from '../UIWindow.js';
 import { listNotifications, markNotificationAcknowledged } from '../../helpers/notificationApi.js';
 import { applyToastMark, createNotificationFeed } from '../../helpers/notificationFeed.js';
+import list_all_shared from '../../helpers/listAllShared.js';
 import {
     badgeLabel,
     formatAbsoluteTime,
     formatRelativeTime,
     glyphKey,
+    hasLiveShareTarget,
     isUnread,
     mergeEntries,
     notificationTarget,
@@ -440,12 +442,28 @@ export default function UIDashboardNotifications ({ $el_window, socket }) {
         if ( paths?.length ) filesTab.selectSharedRows?.(paths);
     };
 
-    const actOn = (entry) => {
+    const actOn = async (entry) => {
         const target = notificationTarget(entry.notification);
         close({ restoreFocus: false });
         // Acknowledged first: what the click leads to may take a moment, and
         // the entry should read as seen by the time it lands.
         void markRead(entry.uid);
+        if ( target?.kind === 'shared-item' || target?.kind === 'shared' ) {
+            try {
+                const shares = await list_all_shared();
+                if ( ! hasLiveShareTarget(target, shares) ) {
+                    UIAlert({
+                        message: i18n('share_nothing_shared'),
+                        type: 'error',
+                    });
+                    return;
+                }
+            } catch ( err ) {
+                // Let the Files view handle transient listing errors; they do
+                // not prove that the share itself has disappeared.
+                console.warn('Could not validate share notification:', err);
+            }
+        }
         if ( target?.kind === 'shared-item' ) {
             void goToShared([target.path]);
         } else if ( target?.kind === 'shared' ) {
@@ -650,7 +668,7 @@ export default function UIDashboardNotifications ({ $el_window, socket }) {
     $panel.on('click', '.dashboard-notification-main.is-actionable', function () {
         const uid = $(this).closest('.dashboard-notification').attr('data-uid');
         const entry = entries.find((e) => e.uid === uid);
-        if ( entry ) actOn(entry);
+        if ( entry ) void actOn(entry);
     });
 
     // Layout mode changed under an open panel: re-anchor, or drop the anchor.

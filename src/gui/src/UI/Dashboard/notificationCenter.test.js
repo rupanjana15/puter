@@ -23,6 +23,7 @@ import {
     formatAbsoluteTime,
     formatRelativeTime,
     glyphKey,
+    hasLiveShareTarget,
     isShareNotification,
     isUnread,
     mergeEntries,
@@ -328,6 +329,30 @@ describe('notificationTarget', () => {
         expect(notificationTarget({})).toBeNull();
         expect(notificationTarget(null)).toBeNull();
         expect(notificationTarget('text')).toBeNull();
+    });
+});
+
+describe('hasLiveShareTarget', () => {
+    const share = {
+        entryUid: '0b1c2d3e-0000-4000-8000-000000000000',
+        path: '/alice/0b1c2d3e-0000-4000-8000-000000000000/report.txt',
+    };
+
+    it('rejects a notification after its share disappears', () => {
+        expect(hasLiveShareTarget({ kind: 'shared-item', path: share.path }, [])).toBe(false);
+        expect(hasLiveShareTarget({ kind: 'shared' }, [])).toBe(false);
+    });
+
+    it('accepts a live item by path or stable uid after a rename', () => {
+        expect(hasLiveShareTarget({ kind: 'shared-item', path: share.path }, [share])).toBe(true);
+        expect(hasLiveShareTarget({
+            kind: 'shared-item',
+            path: '/alice/0b1c2d3e-0000-4000-8000-000000000000/old-name.txt',
+        }, [share])).toBe(true);
+    });
+
+    it('keeps a grouped notification actionable while any share remains', () => {
+        expect(hasLiveShareTarget({ kind: 'shared' }, [share])).toBe(true);
     });
 });
 

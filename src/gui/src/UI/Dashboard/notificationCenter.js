@@ -265,6 +265,23 @@ export const notificationTarget = (notification) => {
     return { kind: 'shared' };
 };
 
+/**
+ * Whether a share notification still points at something the recipient can
+ * open. Paths contain the entry uid, so a renamed item remains a match.
+ * Grouped notifications are live while anything remains in Shared.
+ */
+export const hasLiveShareTarget = (target, shares) => {
+    if ( ! target || ! Array.isArray(shares) ) return false;
+    if ( target.kind === 'shared' ) return shares.length > 0;
+    if ( target.kind !== 'shared-item' ) return false;
+
+    const targetUid = target.path.split('/')[2];
+    return shares.some((share) => (
+        share?.path === target.path
+        || (targetUid && share?.entryUid === targetUid)
+    ));
+};
+
 /** What the badge shows for a count: nothing, the number, or a cap. */
 export const badgeLabel = (count) => {
     if ( ! Number.isFinite(count) || count <= 0 ) return '';
